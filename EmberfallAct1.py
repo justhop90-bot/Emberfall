@@ -54,6 +54,7 @@ ENEMIES = {
     "ghast": {"label": "Wreckghast", "hp": 18, "ac": 12, "atk": 4, "dmg": (1, 8), "xp": 50, "rng": 4, "color": (150, 160, 220), "dfn": 2, "agi": 4},
     "caller": {"label": "Tidecaller", "hp": 22, "ac": 13, "atk": 4, "dmg": (1, 6), "xp": 70, "rng": 4, "color": (90, 200, 170), "dfn": 3, "agi": 5},
     "warden_boss": {"label": "Star Warden", "hp": 46, "ac": 14, "atk": 6, "dmg": (1, 10), "xp": 180, "rng": 1, "color": (220, 200, 90), "dfn": 4, "agi": 4},
+    "deepmaw": {"label": "Deepmaw", "hp": 40, "ac": 13, "atk": 6, "dmg": (1, 8), "xp": 120, "rng": 1, "color": (120, 40, 60), "dfn": 4, "agi": 3},
 }
 
 # Traditional menu-battle abilities (DQ-style rounds: input all, resolve in Agility order).
@@ -187,8 +188,25 @@ MAPS = {
         "spawns": {"hero": (200, 200), "nym": (260, 220), "kael": (180, 260)}},
     "chapel": {"w": 1400, "h": 900, "sea": 950,
         "walls": [(0, 0, 1400, 24), (0, 0, 24, 900), (1376, 0, 24, 900), (0, 876, 1400, 24), (400, 300, 120, 300), (880, 300, 120, 300), (500, 600, 400, 46)],
-        "props": [("ALTAR", 700, 700), ("PEWS", 620, 480), ("FONT", 780, 420)],
+        "props": [("ALTAR", 700, 700), ("PEWS", 620, 480), ("FONT", 780, 420), ("SUN BRAZIER", 480, 640), ("TIDE BRAZIER", 700, 660), ("STAR BRAZIER", 920, 640)],
         "spawns": {"hero": (700, 150), "nym": (750, 170), "kael": (650, 170)}},
+    "hold": {"w": 1200, "h": 800, "sea": 900,
+        "walls": [(0, 0, 1200, 24), (0, 0, 24, 800), (1176, 0, 24, 800), (0, 776, 1200, 24), (300, 300, 200, 40), (700, 450, 200, 40), (450, 600, 300, 40)],
+        "props": [("SPLIT HULL", 400, 400), ("PAY CHEST", 800, 500), ("LEDGER DESK", 550, 650), ("NEST", 950, 250)],
+        "spawns": {"hero": (150, 150), "nym": (200, 170), "kael": (130, 200)}},
+    "cove": {"w": 1400, "h": 900, "sea": 700,
+        "walls": [(0, 0, 1400, 24), (0, 0, 24, 900), (1376, 0, 24, 900), (0, 876, 1400, 24), (500, 200, 300, 46), (900, 500, 200, 60)],
+        "props": [("SMUGGLER FIRE", 700, 400), ("TIDE POOL", 1050, 620), ("DARK WATER", 300, 700)],
+        "spawns": {"hero": (200, 200), "nym": (260, 220), "kael": (180, 260)}},
+}
+
+# ambient NPCs per map: (key, name, x, y, cloak) — drawn + talked via interact
+NPCS = {
+    "shore": [("per", "Per", 1150, 250, (90, 160, 200))],
+    "camp": [("maren", "Maren", 550, 480, (150, 200, 140))],
+    "chapel": [("tess", "Tess", 700, 250, (220, 220, 240)), ("pilgrim", "Vess", 850, 380, (160, 140, 160))],
+    "hold": [],
+    "cove": [("joss", "Joss", 700, 430, (120, 120, 140))],
 }
 
 
@@ -361,6 +379,8 @@ class Game(arcade.Window):
         self.bond_seen = set()   # e.g. {"nym:2"} scenes already played
         self.draft_offer = []    # current modal options
         self.tut_spark = False   # first-draft tutorial played
+        self.seen_nodes = set()  # dialogue nodes ever visited (Ink-style memory)
+        self.seen_opts = set()   # "node:idx" once-options already taken
 
     # ---------- character ----------
     def finalize(self):
@@ -462,6 +482,11 @@ class Game(arcade.Window):
         return ok, f"d20:{nat}+{m} {ability} vs DC{dc} — {'SUCCESS' if ok else 'FAIL'}"
 
     def gain_xp(self, n):
+        if self.level >= len(XP_TABLE):
+            _g = max(1, n // 5)
+            self.gold += _g
+            self.msg, self.msg_t = f"+{n} XP (capped) → +{_g}g salt-money.", 3
+            return False
         self.msg = f"+{n} XP"
         self.msg_t = 3
         self.xp += n
@@ -549,6 +574,9 @@ class Game(arcade.Window):
                     "eat": self.equip_atk, "eac": self.equip_ac,
                     "tal": self.hero_talents, "pd": self.pending_drafts, "pf": self.pending_feat,
                     "feat": self.feat, "bs": sorted(self.bond_seen), "tut": self.tut_spark,
+                    "q2r": getattr(self, "q2_rests", 0), "braz": getattr(self, "braz_order", []),
+                    "seen": sorted(getattr(self, "seen_nodes", set())),
+                    "seen_opts": sorted(getattr(self, "seen_opts", set())),
                     "cmp": [{"hp": c["hp"], "max": c["max"], "mp": c.get("mp", 6), "mpmax": c.get("mpmax", 6)} for c in self.comps]}
             json.dump(data, open(SAVE_PATH, "w"))
             self.msg, self.msg_t = "Saved (F9 to load).", 2
@@ -572,6 +600,10 @@ class Game(arcade.Window):
             self.feat = d.get("feat", None)
             self.bond_seen = set(d.get("bs", []))
             self.tut_spark = d.get("tut", True)
+            self.q2_rests = d.get("q2r", 0)
+            self.braz_order = d.get("braz", [])
+            self.seen_nodes = set(d.get("seen", []))
+            self.seen_opts = set(d.get("seen_opts", []))
             # table mutations don't survive a reboot — re-apply from the loaded build
             self.revert_abilities()
             for _t in self.hero_talents:
@@ -600,17 +632,76 @@ class Game(arcade.Window):
         self.reveal = 0.0
         self.sel = 0
         self.banner = ""
+        self.seen_nodes.add(nid)
 
     def cur(self):
         return DIALOGUES[self.node]
 
-    def choose(self, opt):
+    def opt_ok(self, opt, idx):
+        """Ink-style choice gating: unmet requires hide the option entirely."""
+        if f"{self.node}:{idx}" in getattr(self, "seen_opts", set()) and opt.get("once"):
+            return False
+        rq = opt.get("requires") or {}
+        if "flag" in rq and rq["flag"] not in self.flags:
+            return False
+        if "noflag" in rq and rq["noflag"] in self.flags:
+            return False
+        for _w, _need in (rq.get("approval") or {}).items():
+            if self.approval.get(_w, 0) < _need:
+                return False
+        for _w, _need in (rq.get("rank") or {}).items():
+            if self.bond_rank(_w) < _need:
+                return False
+        for _item, _n in (rq.get("items") or {}).items():
+            if self.inv.get(_item, 0) < _n:
+                return False
+        if "level" in rq and self.level < rq["level"]:
+            return False
+        if "talents" in rq and len(getattr(self, "hero_talents", [])) < rq["talents"]:
+            return False
+        return True
+
+    def visible_opts(self):
+        return [(i, o) for i, o in enumerate(self.cur()["options"]) if self.opt_ok(o, i)]
+
+    def do_exec(self, cmds):
+        """Yarn-style effect commands on options: flag/gold/give/take/heal/approval/xp."""
+        for _c in cmds or []:
+            _p = str(_c).split()
+            if not _p:
+                continue
+            _verb = _p[0]
+            try:
+                if _verb == "flag" and len(_p) > 1:
+                    self.flags[_p[1]] = True
+                elif _verb == "unflag" and len(_p) > 1:
+                    self.flags.pop(_p[1], None)
+                elif _verb == "gold" and len(_p) > 1:
+                    self.gold += int(_p[1])
+                elif _verb == "give":
+                    self.inv[_p[1]] = self.inv.get(_p[1], 0) + (int(_p[2]) if len(_p) > 2 else 1)
+                elif _verb == "take":
+                    self.inv[_p[1]] = max(0, self.inv.get(_p[1], 0) - (int(_p[2]) if len(_p) > 2 else 1))
+                elif _verb == "heal":
+                    _n = int(_p[1]) if len(_p) > 1 else 10
+                    self.hp = min(self.max_hp, self.hp + _n)
+                elif _verb == "approval" and len(_p) > 2:
+                    self.approval[_p[1]] = self.approval.get(_p[1], 0) + int(_p[2])
+                elif _verb == "xp" and len(_p) > 1:
+                    self.gain_xp(int(_p[1]))
+            except (ValueError, IndexError):
+                continue
+
+    def choose(self, opt, idx=None):
         if opt.get("need") and self.inv.get(opt["need"], 0) <= 0:
             self.banner = f"Need: {opt['need']} — not in pack."
             self.banner_t = 2.5
             return
         if opt.get("need"):
             self.inv[opt["need"]] -= 1
+        if idx is not None and opt.get("once"):
+            self.seen_opts.add(f"{self.node}:{idx}")
+        self.do_exec(opt.get("do"))
         if opt.get("gold"):
             self.gold += opt["gold"]
         for k, v in opt.get("approval", {}).items():
@@ -670,6 +761,15 @@ class Game(arcade.Window):
             c["hp"] = c["max"]
             c["mp"] = c.get("mpmax", 6)
         self.play("heal")
+        # time pressure: the untended sailor fades on the second rest
+        if self.quests.get("q2") == 1 and "q2_done" not in self.flags and "q2_dark" not in self.flags:
+            self.q2_rests = getattr(self, "q2_rests", 0) + 1
+            if self.q2_rests == 1:
+                self.msg, self.msg_t = "Rested. Somewhere east, the sailor coughs blood.", 4
+            elif self.q2_rests >= 2:
+                self.flags["q2_dead"] = True
+                self.approval["Nym"] = self.approval.get("Nym", 0) - 2
+                self.msg, self.msg_t = "You slept. The sailor didn't wake. Nym won't forget.", 5
         # tutorial first: Nym's Spark intro must never be skipped by a scene
         if self.pending_drafts > 0 and not self.tut_spark:
             self.tut_spark = True
@@ -836,6 +936,8 @@ class Game(arcade.Window):
             "e1": ["crab", "crab"],
             "e2": ["crab", "ghast", "ghast"],
             "e3": ["ghast", "ghast", "caller"],
+            "e4": ["ghast", "ghast", "crab"],
+            "maw": ["deepmaw"],
             "boss": ["caller", "ghast", "warden_boss"],
         }
         foes = presets.get(key, ["crab"])
@@ -856,7 +958,8 @@ class Game(arcade.Window):
         _fl = []
         for i, f in enumerate(foes):
             e = ENEMIES[f]
-            _fl.append({"n": e["label"] + (f" {i+1}" if len(foes) > 1 else ""), "key": f, "hp": e["hp"], "max": e["hp"],
+            _hp = e["hp"] - (10 if key == "boss" and "tess_bless" in self.flags and f == "warden_boss" else 0)
+            _fl.append({"n": e["label"] + (f" {i+1}" if len(foes) > 1 else ""), "key": f, "hp": _hp, "max": _hp,
                         "atk": e["atk"], "dfn": e["dfn"], "agi": e["agi"], "color": e["color"], "alive": True,
                         "xp": e["xp"], "guard": False, "st": {"atk": 0, "dfn": 0}, "dot": {"poison": 0, "burn": 0}})
         self.combat = {"key": key, "round": 1, "log": [f"A wild party appears! ({len(_fl)} foes) — Round 1: orders!"],
@@ -1205,6 +1308,11 @@ class Game(arcade.Window):
                 self.b_deal(foe, 0, weak, 1.1, label="Bolt")
         elif key == "warden_boss":
             self.b_boss_act(foe, weak)
+        elif key == "deepmaw":
+            if random.random() < 0.25:
+                self.b_deal(foe, 0, weak, 2.0, label="Swallow Whole")
+            else:
+                self.b_deal(foe, 0, weak, 1.6, label="Rending Maw")
 
     def b_boss_act(self, foe, weak):
         c = self.combat
@@ -1338,7 +1446,7 @@ class Game(arcade.Window):
         c = self.combat
         key = c["key"]
         total = sum(f.get("xp", 0) for f in c["foes"])
-        loot_g = {"e1": 15, "e2": 30, "e3": 45, "boss": 80}[key]
+        loot_g = {"e1": 15, "e2": 30, "e3": 45, "e4": 40, "maw": 60, "boss": 80}[key]
         self.gold += loot_g
         if self.has_talent("scrounge"):
             self.gold += 10
@@ -1364,6 +1472,12 @@ class Game(arcade.Window):
         if key == "boss":
             self.flags["boss_done"] = True
             self.quests["q5"] = 1
+        if key == "e4":
+            self.flags["e4_done"] = True
+            self.inv["oil"] = self.inv.get("oil", 0) + 1
+        if key == "maw":
+            self.flags["maw_done"] = True
+            self.inv["herb"] = self.inv.get("herb", 0) + 2
         self.msg = f"Victory! +{total} XP +{loot_g}g" + (" +10 scrounged" if self.has_talent("scrounge") else "") + (" Flawless: companions approve." if key in ("e2", "e3") and not c.get("ally_down") else "")
         self.msg_t = 4
         self.play("ui")
@@ -1374,6 +1488,11 @@ class Game(arcade.Window):
     # ---------- interact ----------
     def interact_list(self):
         L = []
+        # ambient NPCs first (data-driven)
+        for _k, _n, _x, _y, _c in NPCS.get(self.map_id, []):
+            if _k == "per" and "q8_done" in self.flags:
+                continue
+            L.append({"id": f"npc_{_k}", "x": _x, "y": _y, "label": f"Talk: {_n}"})
         if self.map_id == "shore":
             if "q1_done" not in self.flags:
                 L.append({"id": "nym", "x": 540, "y": 260, "label": "Wake: talk to Nym"})
@@ -1381,11 +1500,18 @@ class Game(arcade.Window):
                 if "e1_done" not in self.flags:
                     L.append({"id": "fight_e1", "x": 1000, "y": 420, "label": "Fight: crabs guarding oil (E)"})
                 L.append({"id": "oil", "x": 330, "y": 430, "label": "Take oil flask"})
-                if "q2_done" not in self.flags and "q2_dark" not in self.flags:
+                if "q2_done" not in self.flags and "q2_dark" not in self.flags and "q2_dead" not in self.flags:
                     L.append({"id": "sailor", "x": 960, "y": 300, "label": "Tend the sailor"})
                 if "e1_done" in self.flags:
                     L.append({"id": "pyre", "x": 1220, "y": 560, "label": "Light shore pyre (needs oil)"})
+                if "q8" in self.flags and "q8_done" not in self.flags and "e1_done" in self.flags:
+                    L.append({"id": "net", "x": 1000, "y": 470, "label": "Per's tangled net"})
+                if "cache_shore" not in self.flags and "revealed_shore" in self.flags:
+                    L.append({"id": "cache_shore", "x": 200, "y": 700, "label": "Disturbed sand"})
+            L.append({"id": "go_hold", "x": 330, "y": 480, "label": "Gangplank: wreck hold →"})
             L.append({"id": "go_camp", "x": 1300, "y": 150, "label": "Travel: Hollow Camp →"})
+            L.append({"id": "go_cove", "x": 1350, "y": 700, "label": "Smuggler path → (east)"})
+            L.append({"id": "plaque_tide", "x": 1100, "y": 200, "label": "Read: tide plaque"})
         elif self.map_id == "camp":
             L.append({"id": "serren", "x": 220, "y": 600, "label": "Talk: Serren the trader"})
             L.append({"id": "fire_rest", "x": 700, "y": 300, "label": "Campfire: rest, sparks, respec"})
@@ -1394,15 +1520,44 @@ class Game(arcade.Window):
             else:
                 L.append({"id": "go_chapel", "x": 1300, "y": 150, "label": "Travel: Star Chapel →"})
             L.append({"id": "go_shore", "x": 100, "y": 150, "label": "← Back: Riftshore"})
+            if "cache_camp" not in self.flags and "revealed_camp" in self.flags:
+                L.append({"id": "cache_camp", "x": 1200, "y": 750, "label": "Loose cliff stones"})
+            L.append({"id": "plaque_sun", "x": 400, "y": 700, "label": "Read: sun plaque"})
         elif self.map_id == "chapel":
             if "e3_done" not in self.flags:
                 L.append({"id": "fight_e3", "x": 700, "y": 480, "label": "Chapel guards (E)"})
             else:
                 if "boss_done" not in self.flags:
-                    L.append({"id": "fight_boss", "x": 700, "y": 640, "label": "FACE the Star Warden (E)"})
+                    if "font_open" in self.flags:
+                        L.append({"id": "fight_boss", "x": 700, "y": 640, "label": "FACE the Star Warden (E)"})
+                    else:
+                        L.append({"id": "seal", "x": 700, "y": 640, "label": "Sealed door (braziers?)"})
                 else:
                     L.append({"id": "altar", "x": 700, "y": 720, "label": "Touch the Pale Star"})
+            if "e3_done" in self.flags and "font_open" not in self.flags:
+                for _bid, _bx, _by in (("braz_sun", 480, 640), ("braz_tide", 700, 660), ("braz_star", 920, 640)):
+                    L.append({"id": _bid, "x": _bx, "y": _by, "label": f"Light: {_bid[5:].upper()} brazier"})
             L.append({"id": "go_camp2", "x": 700, "y": 100, "label": "← Back: Camp"})
+            if "cache_chapel" not in self.flags and "revealed_chapel" in self.flags:
+                L.append({"id": "cache_chapel", "x": 250, "y": 700, "label": "Hollow pew"})
+            L.append({"id": "plaque_star", "x": 1050, "y": 250, "label": "Read: star plaque"})
+            L.append({"id": "plaque_deep", "x": 250, "y": 250, "label": "Read: drowned plaque"})
+        elif self.map_id == "hold":
+            if "e4_done" not in self.flags:
+                L.append({"id": "fight_e4", "x": 950, "y": 250, "label": "Ghasts nest here (E)"})
+            else:
+                if "q7" in self.flags and "q7_done" not in self.flags:
+                    L.append({"id": "stash", "x": 800, "y": 500, "label": "Joss's pay chest"})
+                if "ledger_found" not in self.flags:
+                    L.append({"id": "ledger", "x": 550, "y": 650, "label": "Read the ledger"})
+            L.append({"id": "go_shore2", "x": 150, "y": 150, "label": "← Gangplank out"})
+            L.append({"id": "go_cove2", "x": 1100, "y": 700, "label": "Dark tunnel →"})
+        elif self.map_id == "cove":
+            if "maw_done" not in self.flags:
+                L.append({"id": "fight_maw", "x": 300, "y": 700, "label": "Something moves below (E)"})
+            if "cache_cove" not in self.flags and "revealed_cove" in self.flags:
+                L.append({"id": "cache_cove", "x": 1050, "y": 620, "label": "Still tide pool"})
+            L.append({"id": "go_shore3", "x": 200, "y": 150, "label": "← Climb out"})
         return L
 
     def nearest(self):
@@ -1433,6 +1588,10 @@ class Game(arcade.Window):
             self.start_combat("e2")
         elif i == "fight_e3":
             self.start_combat("e3")
+        elif i == "fight_e4":
+            self.start_combat("e4")
+        elif i == "fight_maw":
+            self.start_combat("maw")
         elif i == "fight_boss":
             self.start_combat("boss")
         elif i == "pyre":
@@ -1463,6 +1622,83 @@ class Game(arcade.Window):
         elif i == "altar":
             self.quests["q5"] = 1
             self.talk("altar")
+        elif i.startswith("npc_"):
+            _k = i[4:]
+            _nodes = {"per": "per", "maren": "maren", "joss": "joss", "tess": "tess", "pilgrim": "pilgrim"}
+            if _k == "maren" and "q6_done" in self.flags:
+                self.talk("maren_done")
+            elif _k == "per" and "q8" in self.flags and "net_found" in self.flags:
+                self.talk("per_done")
+            elif _k == "per" and "q8" in self.flags:
+                self.msg, self.msg_t = "Per's net is still tangled by the west pools.", 3
+                self.play("miss")
+            else:
+                self.talk(_nodes.get(_k, "serren"))
+        elif i == "net":
+            self.inv["oil"] = self.inv.get("oil", 0)  # no-op guard
+            self.msg, self.msg_t = "Slogged and stinking. Haul it to Per.", 3
+            self.flags["net_found"] = True
+            self.play("ui")
+        elif i in ("braz_sun", "braz_tide", "braz_star"):
+            self.brazier(i[5:])
+        elif i == "seal":
+            self.msg, self.msg_t = "Sealed by old prayer. Three braziers watch: sun, tide, star.", 4
+            self.play("miss")
+        elif i in ("cache_shore", "cache_camp", "cache_chapel", "cache_cove"):
+            _loot = {"cache_shore": ("gold", 25), "cache_camp": ("bandage", 2),
+                     "cache_chapel": ("oil", 2), "cache_cove": ("herb", 3)}[i]
+            _k, _n = _loot
+            if _k == "gold":
+                self.gold += _n
+            else:
+                self.inv[_k] = self.inv.get(_k, 0) + _n
+            self.flags[i] = True
+            self.gain_xp(15)
+            self.msg, self.msg_t = f"Cache! +{_n} {_k}.", 3
+            self.play("ui")
+        elif i in ("plaque_sun", "plaque_tide", "plaque_star", "plaque_deep"):
+            self.talk(i)
+        elif i == "stash":
+            self.gold += 50
+            self.flags["q7_done"] = True
+            self.quests["q7"] = 2
+            self.approval["Kael"] = self.approval.get("Kael", 0) + 1
+            self.gain_xp(60)
+            self.msg, self.msg_t = "Pay chest (+50g). Kael gets his papers. (Q7 done)", 4
+            self.play("ui")
+        elif i == "ledger":
+            self.flags["ledger_found"] = True
+            self.msg, self.msg_t = "Debts, bribes, a bought discharge... Serren should answer for this.", 4
+            self.play("ui")
+        elif i == "go_hold":
+            self.goto_map("hold")
+        elif i == "go_shore2":
+            self.goto_map("shore", 300, 420)
+        elif i == "go_cove2":
+            self.goto_map("cove")
+        elif i == "go_cove":
+            self.goto_map("cove")
+        elif i == "go_shore3":
+            self.goto_map("shore", 1250, 650)
+
+    def brazier(self, which):
+        if "font_open" in self.flags:
+            return
+        _ord = getattr(self, "braz_order", [])
+        _ord = _ord + [which]
+        if _ord == ["sun", "tide", "star"][:len(_ord)]:
+            self.braz_order = _ord
+            self.play("fire")
+            if len(_ord) == 3:
+                self.flags["font_open"] = True
+                self.gain_xp(30)
+                self.msg, self.msg_t = "SUN, TIDE, STAR — the seal sighs open.", 4
+            else:
+                self.msg, self.msg_t = f"The {which} flame catches... ({len(_ord)}/3)", 3
+        else:
+            self.braz_order = []
+            self.msg, self.msg_t = "The flames gutter out. Wrong order.", 3
+            self.play("miss")
 
     # ---------- input ----------
     def on_key_press(self, key, modifiers):
@@ -1581,7 +1817,10 @@ class Game(arcade.Window):
                 self.state = "PAUSE"
             return
         if self.state == "DIALOGUE":
-            n = len(self.cur()["options"])
+            vis = self.visible_opts()
+            n = max(1, len(vis))
+            if self.sel >= n:
+                self.sel = 0
             if key in (K.UP, K.W):
                 self.sel = (self.sel - 1) % n
             elif key in (K.DOWN, K.S):
@@ -1589,12 +1828,14 @@ class Game(arcade.Window):
             elif key in (K.ENTER, K.SPACE):
                 if self.reveal < len(self.cur()["text"]):
                     self.reveal = len(self.cur()["text"])
-                else:
-                    self.choose(self.cur()["options"][self.sel])
+                elif vis:
+                    _idx, _opt = vis[self.sel]
+                    self.choose(_opt, _idx)
                     self.sel = 0
-            elif key in numkeys and numkeys[key] < n:
+            elif vis and key in numkeys and numkeys[key] < n:
                 self.sel = numkeys[key]
-                self.choose(self.cur()["options"][self.sel])
+                _idx, _opt = vis[self.sel]
+                self.choose(_opt, _idx)
                 self.sel = 0
             return
         if self.state == "DRAFT":
@@ -1938,6 +2179,20 @@ class Game(arcade.Window):
                     c["y"] += math.sin(a) * 175 * dt
                 tx, ty = c["x"] - 22, c["y"] - 12
             self._fmap = self.map_id
+            # perception: hidden caches ping when close (WIT DC11, retryable)
+            _pc = getattr(self, "_ping_cd", {})
+            for _cid, (_cm, _cx, _cy) in (("shore", ("shore", 200, 700)), ("camp", ("camp", 1200, 750)),
+                                          ("chapel", ("chapel", 250, 700)), ("cove", ("cove", 1050, 620))):
+                if _cm != self.map_id or f"revealed_{_cid}" in self.flags or f"cache_{_cid}" in self.flags:
+                    continue
+                if math.hypot(self.px - _cx, self.py - _cy) < 110 and self.t - _pc.get(_cid, -9) > 4:
+                    _pc[_cid] = self.t
+                    _nat, _tot = roll_d20(mod(self.abilities["WIT"]))
+                    if _nat == 20 or _tot >= 11:
+                        self.flags[f"revealed_{_cid}"] = True
+                        self.msg, self.msg_t = "Something glints... disturbed ground. (!)", 3
+                        self.play("ui")
+            self._ping_cd = _pc
             # camera
             m = MAPS[self.map_id]
             self.cam[0] = max(0, min(m["w"] - SCREEN_W, self.px - SCREEN_W / 2))
@@ -2226,7 +2481,7 @@ class Game(arcade.Window):
     def d_world(self):
         m = MAPS[self.map_id]
         # Kenney-tiled ground (falls back to flat if assets missing)
-        base_tile = {"shore": "sand", "camp": "grass", "chapel": "stone"}[self.map_id]
+        base_tile = {"shore": "sand", "camp": "grass", "chapel": "stone", "hold": "wood", "cove": "sand"}[self.map_id]
         tiled = "grass" in self.tile_tex or base_tile in self.tile_tex
         if tiled:
             arcade.draw_lbwh_rectangle_filled(0, 0, SCREEN_W, SCREEN_H, (20, 22, 34))
@@ -2279,9 +2534,16 @@ class Game(arcade.Window):
             arcade.draw_circle_outline(sx, sy, 14 + pulse, arcade.color.GOLD, 2)
             arcade.draw_text("!", sx, sy - 6, arcade.color.GOLD, 13, anchor_x="center", bold=True)
         # sailor flavor
-        if self.map_id == "shore" and "q2_done" not in self.flags and "q2_dark" not in self.flags:
+        if self.map_id == "shore" and "q2_done" not in self.flags and "q2_dark" not in self.flags and "q2_dead" not in self.flags:
             sx, sy = self.w2s(960, 300)
             self.draw_guy(sx, sy, (190, 110, 110), "Sailor", 1, self.t * 2)
+        # ambient NPCs (data-driven)
+        for _k, _n, _x, _y, _c in NPCS.get(self.map_id, []):
+            if _k == "per" and "q8_done" in self.flags:
+                continue
+            sx, sy = self.w2s(_x, _y)
+            if -60 < sx < SCREEN_W + 60 and -60 < sy < SCREEN_H + 60:
+                self.draw_guy(sx, sy, _c, _n, 1, self.t * 2)
         # comps
         for c in self.comps:
             if not c["on"]:
@@ -2307,14 +2569,28 @@ class Game(arcade.Window):
                 return "◆ Oil for the Light: clear crabs, take oil"
             if "pyre_lit" not in self.flags:
                 return "◆ Light the shore pyre (needs oil)"
-            return "◆ Go: Hollow Camp → (east)"
+            if "q8" in self.flags and "q8_done" not in self.flags:
+                return "◆ Per's net: west pools"
+            return "◆ Go: Hollow Camp → (east) — or explore hold/cove"
         if self.map_id == "camp":
+            if "q6_done" not in self.flags:
+                return "◆ Maren needs 3 bitter herbs [!]"
             if "e2_done" not in self.flags:
                 return "◆ Ambush on the trail [!] — then Chapel"
             return "◆ Go: Star Chapel →"
+        if self.map_id == "hold":
+            if "e4_done" not in self.flags:
+                return "◆ Clear the ghast nest [!]"
+            return "◆ Stash? Ledger? Tunnel to cove →"
+        if self.map_id == "cove":
+            if "maw_done" not in self.flags:
+                return "◆ Something moves in dark water [!]"
+            return "◆ Joss? Pools? Climb out ←"
         if "boss_done" not in self.flags:
             if "e3_done" not in self.flags:
                 return "◆ Chapel guards [!]"
+            if "font_open" not in self.flags:
+                return "◆ Unseal the door: sun, tide, star"
             return "◆ FACE the Star Warden [!]"
         return "◆ Touch the Pale Star [!]"
 
@@ -2351,21 +2627,26 @@ class Game(arcade.Window):
             self.d_sheet()
 
     def d_journal(self):
-        arcade.draw_lbwh_rectangle_filled(200, 120, 560, 400, (13, 13, 26))
-        arcade.draw_lbwh_rectangle_outline(200, 120, 560, 400, arcade.color.GOLD, 2)
-        arcade.draw_text("JOURNAL — J closes (BG rule: never feel lost)", 480, 488, arcade.color.GOLD, 14, anchor_x="center", bold=True)
+        arcade.draw_lbwh_rectangle_filled(200, 80, 560, 450, (13, 13, 26))
+        arcade.draw_lbwh_rectangle_outline(200, 80, 560, 450, arcade.color.GOLD, 2)
+        arcade.draw_text("JOURNAL — J closes (BG rule: never feel lost)", 480, 502, arcade.color.GOLD, 14, anchor_x="center", bold=True)
         lines = ["Q1 Wake of the Star: " + ("DONE" if "q1_done" in self.flags else "find Nym"),
-                 "Q2 Salt and Mercy: " + ("DONE" if self.quests["q2"] == 2 else "sailor at east rocks"),
+                 "Q2 Salt and Mercy: " + ("DONE" if self.quests["q2"] == 2 else ("DEAD — too slow" if "q2_dead" in self.flags else "sailor at east rocks (hurry!)")),
                  "Q3 Oil for the Light: " + ("DONE" if "pyre_lit" in self.flags else "oil + clear crabs + pyre"),
-                 "Q4 The Star Hums: " + ("DONE" if "e3_done" in self.flags else "take the chapel"),
+                 "Q4 The Star Hums: " + ("DONE" if "e3_done" in self.flags else "take the chapel (braziers: sun,tide,star)"),
                  "Q5 Choose the Light: " + ("DONE" if self.quests["q5"] == 2 else "face Warden, touch Star"),
+                 "Q6 Maren's Remedy: " + ("DONE" if "q6_done" in self.flags else "3 bitter herbs"),
+                 "Q7 Joss's Papers: " + ("DONE" if "q7_done" in self.flags else ("find the hold stash" if "q7" in self.flags else "a deserter in the cove?")),
+                 "Q8 Per's Net: " + ("DONE" if "q8_done" in self.flags else ("find it by the pools" if "q8" in self.flags else "—")),
+                 "Q9 Serren's Ledger: " + ("DONE" if "q9_done" in self.flags else ("confront him" if "ledger_found" in self.flags else "—")),
+                 "Nest/Deepmaw: " + ("cleared" if "e4_done" in self.flags else "hold") + " / " + ("slain" if "maw_done" in self.flags else "cove"),
                  "", f"Mystery: why did it hum YOUR name?",
                  f"Sparks: {', '.join(self._talent_labels()) or 'none yet'}   Pending: {self.pending_drafts} draft(s){' + FEAT' if self.pending_feat else ''} (campfire)",
                  f"Bonds: Nym {self._bond_label('Nym')}  Kael {self._bond_label('Kael')}",
                  f"Flags: {', '.join(sorted(self.flags.keys())) or 'none'}",
                  f"Nym {self.approval['Nym']:+} | Kael {self.approval['Kael']:+} | {self.gold}g"]
         for i, ln in enumerate(lines):
-            arcade.draw_text(ln, 230, 450 - i * 24, arcade.color.WHITE, 12)
+            arcade.draw_text(ln, 230, 470 - i * 23, arcade.color.WHITE, 12)
 
     def _talent_labels(self):
         import progression as _pgd
@@ -2438,7 +2719,7 @@ class Game(arcade.Window):
         if self.banner and self.banner_t > 0:
             arcade.draw_text(self.banner, 160, 122, arcade.color.YELLOW, 11, bold=True)
         if self.reveal >= len(n["text"]):
-            for i, o in enumerate(n["options"]):
+            for i, (_idx, o) in enumerate(self.visible_opts()):
                 lock = o.get("need") and self.inv.get(o["need"], 0) <= 0
                 pre = "🔒 " if lock else ""
                 arcade.draw_text(f"{'▶' if i == self.sel else ' '} {i+1}. {pre}{o['text']}", 160, 96 - i * 21,

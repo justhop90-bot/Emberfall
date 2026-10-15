@@ -219,6 +219,10 @@
     "shop": true
    },
    {
+    "text": "Ask about his ledger.",
+    "next": "serren_ledger"
+   },
+   {
     "text": "[CUNNING DC10] \"Warden prices for a warden's friend?\"",
     "check": [
      "CUNNING",
@@ -230,6 +234,11 @@
    {
     "text": "Leave.",
     "end": "close"
+   },
+   {
+    "text": "Ask about the Pale Star. (once)",
+    "next": "serren_star",
+    "once": true
    }
   ]
  },
@@ -278,7 +287,24 @@
     "flag": "ending_dark"
    },
    {
-    "text": "[WIT DC12] BIND IT \u2014 carry the hum, answer later. (Needs Peacemaker OR Nym+3)",
+    "text": "[WIT DC12] BIND IT \u2014 the Star knows you. (Nym trusts you)",
+    "requires": {
+     "approval": {
+      "Nym": 3
+     }
+    },
+    "check": [
+     "WIT",
+     12
+    ],
+    "success": "altar_bind",
+    "fail": "altar_bind_fail"
+   },
+   {
+    "text": "[WIT DC12] BIND IT \u2014 you made peace once; do it again. (Peacemaker)",
+    "requires": {
+     "flag": "peacemaker"
+    },
     "check": [
      "WIT",
      12
@@ -355,7 +381,10 @@
    },
    {
     "text": "Retread your path (respec, 1 ration).",
-    "end": "respec"
+    "end": "respec",
+    "requires": {
+     "talents": 1
+    }
    },
    {
     "text": "Leave it.",
@@ -430,6 +459,366 @@
    {
     "text": "Every battle.",
     "end": "draft"
+   }
+  ]
+ },
+ "serren_star": {
+  "speaker": "Serren (Trader)",
+  "text": "Off the record? It didn't fall. It was aimed. Now buy something.",
+  "options": [
+   {
+    "text": "Trade.",
+    "shop": true
+   },
+   {
+    "text": "Leave.",
+    "end": "close"
+   }
+  ]
+ },
+ "maren": {
+  "speaker": "Old Maren",
+  "text": "Salt in wounds, fever in tents. I need THREE bitter herbs, and the dunes only give to the patient. Help an old woman?",
+  "options": [
+   {
+    "text": "Give 3 bitter herbs.",
+    "requires": {
+     "items": {
+      "herb": 3
+     }
+    },
+    "do": [
+     "take herb 3",
+     "xp 40",
+     "approval Nym 1"
+    ],
+    "flag": "q6_done",
+    "next": "maren_done"
+   },
+   {
+    "text": "Where do I look?",
+    "next": "maren_rumor"
+   },
+   {
+    "text": "Not now.",
+    "end": "close"
+   }
+  ]
+ },
+ "maren_rumor": {
+  "speaker": "Old Maren",
+  "text": "East rocks for herbs. And if you see a warden skulking the cove with no insignia \u2014 that's Joss. Tell him Maren still boils his bandages.",
+  "options": [
+   {
+    "text": "I'll keep an eye out.",
+    "end": "close",
+    "flag": "knows_joss"
+   }
+  ]
+ },
+ "maren_done": {
+  "speaker": "Old Maren",
+  "text": "Brewed and bitter. Take this for the road \u2014 and the camp eats because of you tonight.",
+  "options": [
+   {
+    "text": "(Take a hot meal: +1 ration)",
+    "end": "close",
+    "do": [
+     "give ration 1"
+    ]
+   }
+  ]
+ },
+ "joss": {
+  "speaker": "Joss (deserter)",
+  "text": "Easy. Another warden-hunter? No \u2014 you'd have Kael's walk. What do you want with a dead man?",
+  "options": [
+   {
+    "text": "\"Kael wants his papers back.\" (Invoke him)",
+    "approval": {
+     "Kael": 1
+    },
+    "next": "joss_cache"
+   },
+   {
+    "text": "[CUNNING DC10] Read his stash-cache eyes.",
+    "check": [
+     "CUNNING",
+     10
+    ],
+    "success": "joss_ok",
+    "fail": "joss_fail"
+   },
+   {
+    "text": "Leave him to the tide.",
+    "end": "close"
+   }
+  ]
+ },
+ "joss_ok": {
+  "speaker": "Insight",
+  "text": "(SUCCESS) His eyes keep cutting to the wreck's split hull. The stash is there, not here.",
+  "options": [
+   {
+    "text": "\"The hull stash. Split it with me.\"",
+    "next": "joss_cache",
+    "flag": "q7"
+   }
+  ]
+ },
+ "joss_fail": {
+  "speaker": "Insight",
+  "text": "(FAIL) Shuttered face. He'll say nothing \u2014 but he keeps what he keeps.",
+  "options": [
+   {
+    "text": "\"Keep your secrets. For now.\"",
+    "end": "close"
+   }
+  ]
+ },
+ "joss_cache": {
+  "speaker": "Joss (deserter)",
+  "text": "Papers and pay-chest in the wreck hold. You take the gold, Kael gets his papers, nobody hangs. We never met.",
+  "options": [
+   {
+    "text": "Deal. (Find the hold stash)",
+    "end": "close",
+    "flag": "q7",
+    "approval": {
+     "Kael": 1
+    }
+   }
+  ]
+ },
+ "per": {
+  "speaker": "Fisher Per",
+  "text": "Crabs took my net AND my dinner. It's tangled by their tide-pools, west rocks. Fetch it and I'll split the catch.",
+  "options": [
+   {
+    "text": "\"I'll look by the pools.\"",
+    "end": "close",
+    "flag": "q8"
+   },
+   {
+    "text": "Tough tide. Good luck.",
+    "end": "close"
+   }
+  ]
+ },
+ "per_done": {
+  "speaker": "Fisher Per",
+  "text": "My net! And \u2014 psst \u2014 you didn't hear it from me, but smugglers work the cove east. Joss owes half the camp.",
+  "options": [
+   {
+    "text": "(Take dried fish: +1 ration, +15g)",
+    "end": "close",
+    "flag": "q8_done",
+    "do": [
+     "give ration 1",
+     "gold 15",
+     "xp 30"
+    ]
+   }
+  ]
+ },
+ "tess": {
+  "speaker": "Acolyte Tess",
+  "text": "The chapel keeps its dead AND its doors. The Warden within answers only to the old order. Do you know it, stranger?",
+  "options": [
+   {
+    "text": "\"Teach me the order.\"",
+    "next": "tess_riddle"
+   },
+   {
+    "text": "[WIT DC10] Read the chapel's devotion.",
+    "check": [
+     "WIT",
+     10
+    ],
+    "success": "tess_ok",
+    "fail": "tess_fail"
+   },
+   {
+    "text": "We'll force the door.",
+    "end": "close"
+   }
+  ]
+ },
+ "tess_riddle": {
+  "speaker": "Acolyte Tess",
+  "text": "Sun wakes, Tide carries, Star keeps. Light the braziers SUN, then TIDE, then STAR \u2014 any other order gutters out.",
+  "options": [
+   {
+    "text": "\"Sun, tide, star.\"",
+    "end": "close",
+    "flag": "knows_order"
+   }
+  ]
+ },
+ "tess_ok": {
+  "speaker": "Insight",
+  "text": "(SUCCESS) Candle-grease under her nails, orchestrator's hands. She tends the braziers herself \u2014 and fears the Warden too.",
+  "options": [
+   {
+    "text": "\"Bless our going-in, then.\"",
+    "end": "close",
+    "flag": "tess_bless",
+    "do": [
+     "approval Nym 1",
+     "xp 30"
+    ]
+   }
+  ]
+ },
+ "tess_fail": {
+  "speaker": "Insight",
+  "text": "(FAIL) Only incense and fear. She will not be hurried.",
+  "options": [
+   {
+    "text": "\"Keep the candles lit.\"",
+    "end": "close"
+   }
+  ]
+ },
+ "pilgrim": {
+  "speaker": "Pilgrim Vess",
+  "text": "I came to pray and stayed to bleed. The Star below is not a god, friend. Gods don't need to be FED. Whatever you do at the altar \u2014 don't feed it.",
+  "options": [
+   {
+    "text": "\"What does it eat?\"",
+    "next": "pilgrim2"
+   },
+   {
+    "text": "Leave her resting.",
+    "end": "close"
+   }
+  ]
+ },
+ "pilgrim2": {
+  "speaker": "Pilgrim Vess",
+  "text": "Songs. Names. The Warden gave it his. That's why it wears his voice now. Remember my face, not its echo.",
+  "options": [
+   {
+    "text": "(Remember.)",
+    "end": "close",
+    "flag": "knows_warden",
+    "do": [
+     "xp 20"
+    ]
+   }
+  ]
+ },
+ "serren_ledger": {
+  "speaker": "Serren (Trader)",
+  "text": "My ledger? In the wreck hold, if your fingers itch. Read it and weep, friend \u2014 everyone on this coast owes someone.",
+  "options": [
+   {
+    "text": "[CUNNING DC11] \"Owe you silence. Forty gold.\"",
+    "requires": {
+     "flag": "ledger_found"
+    },
+    "check": [
+     "CUNNING",
+     11
+    ],
+    "success": "ledger_ok",
+    "fail": "ledger_fail"
+   },
+   {
+    "text": "\"The camp should see this.\" (Expose)",
+    "requires": {
+     "flag": "ledger_found"
+    },
+    "next": "ledger_open",
+    "flag": "q9_done",
+    "do": [
+     "approval Nym 2",
+     "xp 50"
+    ]
+   },
+   {
+    "text": "Not yet.",
+    "end": "close"
+   }
+  ]
+ },
+ "ledger_ok": {
+  "speaker": "Serren (Trader)",
+  "text": "(SUCCESS) ...Forty. And you never saw the second page. Pleasure doing business with professionals.",
+  "options": [
+   {
+    "text": "(Take 40g. Say nothing.)",
+    "end": "close",
+    "flag": "q9_done",
+    "do": [
+     "gold 40",
+     "approval Kael -1",
+     "xp 30"
+    ]
+   }
+  ]
+ },
+ "ledger_fail": {
+  "speaker": "Serren (Trader)",
+  "text": "(FAIL) Cute. The price of my embarrassment just went UP. Buy something or walk.",
+  "options": [
+   {
+    "text": "Walk.",
+    "end": "close"
+   }
+  ]
+ },
+ "ledger_open": {
+  "speaker": "Nym",
+  "text": "Debts, bribes, a Warden's discharge bought and paid for... Serren, you're lucky the tide needs merchants. This goes to the campfire council.",
+  "options": [
+   {
+    "text": "\"Let justice simmer.\"",
+    "end": "close"
+   }
+  ]
+ },
+ "plaque_sun": {
+  "speaker": "Sun Plaque",
+  "text": "\"FIRST the Sun wakes the water, and thefleet sees the shore.\" \u2014 old tide-prayer, salt-worn.",
+  "options": [
+   {
+    "text": "(Read on.)",
+    "end": "close"
+   }
+  ]
+ },
+ "plaque_tide": {
+  "speaker": "Tide Plaque",
+  "text": "\"THEN the Tide carries the dead home, and asks no names.\" The letters below are dagger-scratched: pay the ferryman.",
+  "options": [
+   {
+    "text": "(Read on.)",
+    "end": "close"
+   }
+  ]
+ },
+ "plaque_star": {
+  "speaker": "Star Plaque",
+  "text": "\"LAST the Star keeps what it catches. Do not sing back.\" Newer script, shaking hand: IT HUMS MY NAME.",
+  "options": [
+   {
+    "text": "(Step back.)",
+    "end": "close"
+   }
+  ]
+ },
+ "plaque_deep": {
+  "speaker": "Drowned Plaque",
+  "text": "\"WHAT SINGS BACK IS NOT THE STAR.\" The rest is barnacles.",
+  "options": [
+   {
+    "text": "(Remember this.)",
+    "end": "close",
+    "flag": "knows_deep",
+    "do": [
+     "xp 20"
+    ]
    }
   ]
  }

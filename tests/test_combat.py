@@ -26,6 +26,8 @@ def make_game(cls="blade", key="e1"):
     g.trauma, g.hitstop, g.floaters, g.particles, g.hp_show = 0, 0, [], [], {}
     g.hero_talents, g.pending_drafts, g.pending_feat = [], 0, False
     g.feat, g.bond_seen, g.tut_spark, g.draft_offer = None, set(), True, []
+    g.seen_nodes, g.seen_opts = set(), set()
+    g.rations, g.banter_n = 2, 0
     g.play = lambda n: None
     g.start_music = lambda m: None
     g.origin_id = "warden"

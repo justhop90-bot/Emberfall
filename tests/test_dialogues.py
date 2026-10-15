@@ -42,3 +42,18 @@ def test_needs_valid():
         for o in node["options"]:
             if o.get("need"):
                 assert o["need"] in known_items, f"{nid}: unknown item {o['need']}"
+
+
+def test_requires_schema():
+    d = load()
+    for nid, node in d.items():
+        for o in node["options"]:
+            rq = o.get("requires") or {}
+            assert set(rq) <= {"flag", "noflag", "approval", "rank", "items", "level", "talents"}, f"{nid}: bad requires key"
+            if "approval" in rq or "rank" in rq:
+                for _w in list((rq.get("approval") or {})) + list((rq.get("rank") or {})):
+                    assert _w in ("Nym", "Kael"), f"{nid}: bad companion { _w}"
+            if "once" in o:
+                assert o["once"] is True, f"{nid}: once must be true"
+            for _c in o.get("do") or []:
+                assert str(_c).split()[0] in ("flag", "unflag", "gold", "give", "take", "heal", "approval", "xp"), f"{nid}: bad do verb {_c}"

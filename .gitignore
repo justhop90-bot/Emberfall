@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+*.pyo
+emberfall_save.json
+emberfall_audio.log
+assets/packs/

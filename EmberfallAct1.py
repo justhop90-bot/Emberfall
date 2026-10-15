@@ -1673,7 +1673,7 @@ class Game(arcade.Window):
         elif i == "go_hold":
             self.goto_map("hold")
         elif i == "go_shore2":
-            self.goto_map("shore", 300, 420)
+            self.goto_map("shore", 180, 550)
         elif i == "go_cove2":
             self.goto_map("cove")
         elif i == "go_cove":
@@ -1699,6 +1699,209 @@ class Game(arcade.Window):
             self.braz_order = []
             self.msg, self.msg_t = "The flames gutter out. Wrong order.", 3
             self.play("miss")
+
+    # ===== RENDER HELPERS =====
+    def _get_tile_type(self, m, tx, ty, base_tile):
+        """Determine tile type with transitions at boundaries."""
+        # Shore: sand above sea line, water below with sand-water transition
+        if self.map_id == "shore":
+            sea_ty = m["sea"] // 64
+            if ty < sea_ty - 1:
+                return base_tile  # sand
+            elif ty == sea_ty - 1:
+                return "sand_water"  # transition
+            elif ty == sea_ty:
+                return "water_shore"  # shallow water
+            else:
+                return "water_deep"  # deep water
+        
+        # Chapel: stone with cracked variants near altar
+        if self.map_id == "chapel":
+            if 450 < (tx * 64) < 950 and 450 < (ty * 64) < 750:
+                if ((tx + ty) % 4 == 0):
+                    return "stone_cracked"
+            return base_tile
+        
+        # Hold: wood planks with variations
+        if self.map_id == "hold":
+            if ((tx + ty) % 5 == 0):
+                return "wood_dark"
+            elif ((tx + ty) % 7 == 0):
+                return "wood_worn"
+            return base_tile
+        
+        # Cove: sand with tide pools
+        if self.map_id == "cove":
+            if 500 < (tx * 64) < 1100 and 550 < (ty * 64) < 700:
+                return "sand_wet"
+            return base_tile
+        
+        return base_tile
+
+    def _draw_water(self, m, cam_x, cam_y):
+        """Animated water with shoreline foam."""
+        sea_y = m["sea"]
+        tile_size = 64
+        time_offset = self.t * 2.0
+        
+        min_tx = max(0, int(cam_x // 64) - 1)
+        max_tx = min(m["w"] // 64, int((cam_x + SCREEN_W) // 64) + 1)
+        
+        for tx in range(min_tx, max_tx + 1):
+            wx = tx * 64
+            sx = wx - cam_x
+            
+            # Shore foam line
+            fy = sea_y - cam_y
+            wave = math.sin((tx * 0.7) + self.t * 2.0) * 3
+            foam_y = fy + wave
+            
+            # Foam line
+            arcade.draw_line(sx, foam_y, sx + 64, foam_y, (255, 255, 255, 120), 2)
+            
+            # Water tiles below shore
+            for ty in range((sea_y // 64) + 1, (m["h"] // 64) + 1):
+                wy = ty * 64
+                sx = tx * 64 - cam_x
+                sy = wy - cam_y
+                if -64 < sx < SCREEN_W + 64 and -64 < sy < SCREEN_H + 64:
+                    wave_offset = math.sin((tx * 0.5 + ty * 0.3) + self.t * 3) * 2
+                    water_type = "water_shore" if ty == (sea_y // 64) + 1 else "water_deep"
+                    self.draw_tile(water_type, sx, sy + wave_offset)
+
+    def _draw_wreck_interior(self, cam_x, cam_y):
+        """Wrecked ship hull interior with planks, debris, cargo."""
+        # Wreck bounds
+        wx_start, wy_start = 260, 380
+        wx_end, wy_end = 520, 426
+        
+        # Hull planks
+        for tx in range(wx_start // 64, wx_end // 64 + 1):
+            for ty in range(wy_start // 64, wy_end // 64 + 1):
+                wx, wy = tx * 64, ty * 64
+                sx, sy = wx - cam_x, wy - cam_y
+                if -64 < sx < SCREEN_W + 64 and -64 < sy < SCREEN_H + 64:
+                    if ((tx + ty) % 3 == 0):
+                        self.draw_tile("wood_dark", sx, sy)
+                    elif ((tx + ty) % 5 == 0):
+                        self.draw_tile("wood_worn", sx, sy)
+                    else:
+                        self.draw_tile("wood_plank", sx, sy)
+        
+        # Debris piles
+        debris = [(340, 400), (400, 410), (460, 390), (300, 395)]
+        for dx, dy in debris:
+            sx, sy = dx - cam_x, dy - cam_y
+            if -64 < sx < SCREEN_W + 64 and -64 < sy < SCREEN_H + 64:
+                self.draw_tile("cargo_crate", sx, sy)
+
+    def _draw_hold_interior(self, cam_x, cam_y):
+        """Ship hold: wooden planks, support beams, cargo areas."""
+        for tx in range(0, 1200 // 64 + 1):
+            for ty in range(0, 800 // 64 + 1):
+                wx, wy = tx * 64, ty * 64
+                sx, sy = wx - cam_x, wy - cam_y
+                if -64 < sx < SCREEN_W + 64 and -64 < sy < SCREEN_H + 64:
+                    if tx % 8 == 0:
+                        self.draw_tile("beam_vertical", wx - cam_x, wy - cam_y)
+                    elif ty % 8 == 0:
+                        self.draw_tile("beam_horizontal", wx - cam_x, wy - cam_y)
+                    elif ((tx + ty) % 6 == 0):
+                        self.draw_tile("wood_worn", sx, sy)
+                    else:
+                        self.draw_tile("wood_plank", sx, sy)
+
+    def _draw_chapel_interior(self, cam_x, cam_y):
+        """Chapel: stone floor, cracked near altar, pews, braziers."""
+        for tx in range(0, 1400 // 64 + 1):
+            for ty in range(0, 900 // 64 + 1):
+                wx, wy = tx * 64, ty * 64
+                sx, sy = wx - cam_x, wy - cam_y
+                if -64 < sx < SCREEN_W + 64 and -64 < sy < SCREEN_H + 64:
+                    dist_to_altar = math.hypot(wx - 700, wy - 700)
+                    if dist_to_altar < 200 and ((tx + ty) % 3 == 0):
+                        self.draw_tile("stone_cracked", sx, sy)
+                    elif dist_to_altar < 350 and ((tx + ty) % 5 == 0):
+                        self.draw_tile("stone_worn", sx, sy)
+                    else:
+                        self.draw_tile("stone", sx, sy)
+        
+        # Pews
+        for row in range(5):
+            for col in range(2):
+                px = 480 + col * 200
+                py = 400 + row * 40
+                sx, sy = px - cam_x, py - cam_y
+                if -64 < sx < SCREEN_W + 64 and -64 < sy < SCREEN_H + 64:
+                    self.draw_tile("pew", sx, sy)
+
+    def _draw_wall_trim(self, sx, sy, ww, wh):
+        """Draw wood/stone trim along walls."""
+        if not self.tile_tex.get("wood"):
+            return
+        steps_x = max(1, int(ww / 64))
+        steps_y = max(1, int(wh / 64))
+        
+        for i in range(steps_x):
+            self.draw_tile("wood", sx + i * 64, sy + wh - 32)
+            self.draw_tile("wood", sx + i * 64, sy - 32)
+        for i in range(steps_y):
+            self.draw_tile("wood", sx - 32, sy + i * 64)
+            self.draw_tile("wood", sx + ww - 32, sy + i * 64)
+
+    def _draw_prop(self, label, sx, sy):
+        """Draw interactive props with proper sprites."""
+        prop_tiles = {
+            "PYRE (east)": "pyre_unlit",
+            "CAMPFIRE": "campfire",
+            "ALTAR": "altar",
+            "FONT": "font",
+            "PEWS": "pew",
+            "TENTS": "tent",
+            "STORE": "shop_stall",
+            "WRECK": "wreck_hull",
+            "ROCKS": "rocks_large",
+            "SPLIT HULL": "hull_split",
+            "PAY CHEST": "chest",
+            "LEDGER DESK": "desk",
+            "NEST": "nest",
+            "SMUGGLER FIRE": "campfire_small",
+            "TIDE POOL": "tide_pool",
+            "DARK WATER": "water_dark",
+            "SUN BRAZIER": "brazier_sun",
+            "TIDE BRAZIER": "brazier_tide",
+            "STAR BRAZIER": "brazier_star",
+            "UNLIT": "pyre_unlit",
+        }
+        
+        tile = prop_tiles.get(label)
+        if tile and self.draw_tile(tile, sx, sy, 64):
+            return
+        
+        # Fallback
+        if "PYRE" in label or "CAMPFIRE" in label or "ALTAR" in label:
+            lit = self.flags.get("pyre_lit") and "PYRE" in label
+            self.draw_tile("pyre_base", sx - 20, sy - 26, 40, 26)
+            if lit or "CAMPFIRE" in label or "ALTAR" in label:
+                self.draw_tile("fire", sx, sy + 6, 36 if "PYRE" in label else 26)
+                self.draw_tile("fire_core", sx, sy + 6, 18 if "PYRE" in label else 9)
+            else:
+                arcade.draw_text("UNLIT", sx, sy - 12, (45, 35, 25), 10, anchor_x="center", bold=True)
+        else:
+            arcade.draw_lbwh_rectangle_filled(sx - 30, sy - 10, 60, 20, (0, 0, 0, 40))
+        arcade.draw_text(label, sx, sy + 18, (50, 42, 30), 10, anchor_x="center", bold=True)
+
+    def _draw_lighting(self, hx, hy):
+        """Atmospheric lighting: vignette, fire glow, ambient."""
+        # Vignette
+        for r in range(0, 400, 50):
+            alpha = max(0, 30 - r // 10)
+            arcade.draw_circle_filled(hx, hy, SCREEN_W + r, (0, 0, 0, alpha))
+        
+        # Fire glow on shore/camp
+        if self.map_id in ("shore", "camp") and self.flags.get("pyre_lit"):
+            for _ in range(3):
+                arcade.draw_circle_filled(hx, hy, 100 + _ * 30, (255, 180, 80, 12 - _ * 4))
 
     # ---------- input ----------
     def on_key_press(self, key, modifiers):
@@ -2480,71 +2683,76 @@ class Game(arcade.Window):
 
     def d_world(self):
         m = MAPS[self.map_id]
-        # Kenney-tiled ground (falls back to flat if assets missing)
+        cam_x, cam_y = self.cam
+        
+        # ===== TILE RENDERING SYSTEM =====
         base_tile = {"shore": "sand", "camp": "grass", "chapel": "stone", "hold": "wood", "cove": "sand"}[self.map_id]
-        tiled = "grass" in self.tile_tex or base_tile in self.tile_tex
-        if tiled:
-            arcade.draw_lbwh_rectangle_filled(0, 0, SCREEN_W, SCREEN_H, (20, 22, 34))
-            x0 = int(self.cam[0] // 64) * 64
-            y0 = int(self.cam[1] // 64) * 64
-            for wx in range(x0, int(self.cam[0] + SCREEN_W) + 64, 64):
-                for wy in range(y0, int(self.cam[1] + SCREEN_H) + 64, 64):
-                    sx, sy = wx - self.cam[0], wy - self.cam[1]
-                    tn = base_tile
-                    if self.map_id == "shore" and wy > m["sea"]:
-                        tn = "water"
-                    elif ((wx // 64) + (wy // 64)) % 7 == 0:
-                        tn = "grass" if base_tile != "grass" else "sand"
-                    if not self.draw_tile(tn, sx, sy):
-                        arcade.draw_lbwh_rectangle_filled(sx, sy, 64, 64, (180, 168, 128))
-        else:
-            base = {"shore": (180, 168, 128), "camp": (150, 165, 120), "chapel": (120, 125, 145)}[self.map_id]
-            arcade.draw_lbwh_rectangle_filled(0, 0, SCREEN_W, SCREEN_H, base)
-            if self.map_id == "shore":
-                sx, sy = self.w2s(0, m["sea"])
-                arcade.draw_lbwh_rectangle_filled(sx, sy, m["w"], 300, (66, 118, 170))
+        
+        # Precompute visible tile range
+        tile_size = 64
+        min_tx = max(0, int(cam_x // tile_size) - 1)
+        max_tx = min(m["w"] // tile_size, int((cam_x + SCREEN_W) // tile_size) + 1)
+        min_ty = max(0, int(cam_y // tile_size) - 1)
+        max_ty = min(m["h"] // tile_size, int((cam_y + SCREEN_H) // tile_size) + 1)
+        
+        # ===== BASE TILES WITH TRANSITIONS =====
+        for tx in range(min_tx, max_tx + 1):
+            for ty in range(min_ty, max_ty + 1):
+                wx, wy = tx * 64, ty * 64
+                sx, sy = wx - cam_x, wy - cam_y
+                
+                # Determine tile type with transitions
+                tile_type = self._get_tile_type(m, tx, ty, base_tile)
+                self.draw_tile(tile_type, sx, sy)
+        
+        # ===== WATER ANIMATION (shore only) =====
+        if self.map_id == "shore":
+            self._draw_water(m, cam_x, cam_y)
+        
+        # ===== WRECK INTERIOR (shore) =====
+        if self.map_id == "shore":
+            self._draw_wreck_interior(cam_x, cam_y)
+        
+        # ===== HOLD INTERIOR =====
+        if self.map_id == "hold":
+            self._draw_hold_interior(cam_x, cam_y)
+        
+        # ===== CHAPEL INTERIOR =====
+        if self.map_id == "chapel":
+            self._draw_chapel_interior(cam_x, cam_y)
+        
+        # ===== WALL TRIM =====
         for wx, wy, ww, wh in m["walls"]:
             sx, sy = self.w2s(wx, wy)
             if -200 < sx < SCREEN_W + 200 and -200 < sy < SCREEN_H + 200:
-                drew = False
-                if self.tile_tex.get("wood"):
-                    # stone/wood trim along the wall rect
-                    steps = max(1, int(ww / 64))
-                    for i in range(steps):
-                        drew = self.draw_tile("wood", sx + i * 64, sy + wh - 32, 64) or drew
-                if not drew:
-                    arcade.draw_lbwh_rectangle_filled(sx, sy, ww, wh, (88, 68, 48))
+                self._draw_wall_trim(sx, sy, ww, wh)
+        
+        # ===== PROPS =====
         for label, x, y in m["props"]:
             sx, sy = self.w2s(x, y)
-            if "PYRE" in label or "CAMPFIRE" in label or "ALTAR" in label:
-                lit = self.flags.get("pyre_lit") and "PYRE" in label
-                arcade.draw_lbwh_rectangle_filled(sx - 20, sy - 26, 40, 26, (75, 55, 38))
-                if lit or "CAMPFIRE" in label or "ALTAR" in label:
-                    arcade.draw_circle_filled(sx, sy + 6, 18 if "PYRE" in label else 13, (255, 140, 40))
-                    arcade.draw_circle_filled(sx, sy + 6, 9, (255, 228, 120))
-                else:
-                    arcade.draw_text("UNLIT", sx, sy - 12, (45, 35, 25), 10, anchor_x="center", bold=True)
-            else:
-                arcade.draw_lbwh_rectangle_filled(sx - 30, sy - 10, 60, 20, (0, 0, 0, 40))
-            arcade.draw_text(label, sx, sy + 18, (50, 42, 30), 10, anchor_x="center", bold=True)
-        # interact markers
+            self._draw_prop(label, sx, sy)
+        
+        # ===== INTERACT MARKERS =====
         for it in self.interact_list():
             sx, sy = self.w2s(it["x"], it["y"])
             pulse = 4 + math.sin(self.t * 4) * 2
             arcade.draw_circle_outline(sx, sy, 14 + pulse, arcade.color.GOLD, 2)
             arcade.draw_text("!", sx, sy - 6, arcade.color.GOLD, 13, anchor_x="center", bold=True)
-        # sailor flavor
+        
+        # ===== SAILOR =====
         if self.map_id == "shore" and "q2_done" not in self.flags and "q2_dark" not in self.flags and "q2_dead" not in self.flags:
             sx, sy = self.w2s(960, 300)
             self.draw_guy(sx, sy, (190, 110, 110), "Sailor", 1, self.t * 2)
-        # ambient NPCs (data-driven)
+        
+        # ===== AMBIENT NPCS =====
         for _k, _n, _x, _y, _c in NPCS.get(self.map_id, []):
             if _k == "per" and "q8_done" in self.flags:
                 continue
             sx, sy = self.w2s(_x, _y)
             if -60 < sx < SCREEN_W + 60 and -60 < sy < SCREEN_H + 60:
                 self.draw_guy(sx, sy, _c, _n, 1, self.t * 2)
-        # comps
+        
+        # ===== COMPANIONS =====
         for c in self.comps:
             if not c["on"]:
                 if self.map_id == "shore" and "q1_done" not in self.flags:
@@ -2553,12 +2761,13 @@ class Game(arcade.Window):
                 continue
             sx, sy = self.w2s(c["x"], c["y"])
             self.draw_guy(sx, sy, c["color"], c["name"], self.face, self.t * 6)
-        # hero
+        
+        # ===== HERO =====
         hx, hy = self.w2s(self.px, self.py)
         self.draw_guy(hx, hy, (200, 170, 60), self.hero_name or "Hero", self.face, self.walk, big=True, selected=False)
-        # vignette-ish fire light
-        if self.map_id in ("shore", "camp"):
-            arcade.draw_circle_filled(hx, hy, 90, (255, 220, 150, 18))
+        
+        # ===== LIGHTING / VIGNETTE =====
+        self._draw_lighting(hx, hy)
 
     def quest_text(self):
         q = self.quests

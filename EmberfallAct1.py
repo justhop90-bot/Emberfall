@@ -2682,6 +2682,14 @@ class Game(arcade.Window):
         arcade.draw_text(name, sx, sy + 26 + bob, arcade.color.BLACK if not big else arcade.color.WHITE, 10 if not big else 12, anchor_x="center", bold=True)
 
     def d_world(self):
+        try:
+            self._d_world_impl()
+        except Exception as e:
+            # Fallback rendering on error
+            arcade.draw_lbwh_rectangle_filled(0, 0, SCREEN_W, SCREEN_H, (20, 22, 34))
+            arcade.draw_text(f"Render error: {e}", 480, 320, arcade.color.RED, 16, anchor_x="center")
+
+    def _d_world_impl(self):
         m = MAPS[self.map_id]
         cam_x, cam_y = self.cam
         

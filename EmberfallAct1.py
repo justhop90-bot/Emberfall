@@ -1881,7 +1881,9 @@ class Game(arcade.Window):
         # Fallback
         if "PYRE" in label or "CAMPFIRE" in label or "ALTAR" in label:
             lit = self.flags.get("pyre_lit") and "PYRE" in label
-            self.draw_tile("pyre_base", sx - 20, sy - 26, 40, 26)
+            # pyre_base: draw as 2x1 tiles (40x26 approx = 64x32, use 2 tiles)
+            self.draw_tile("pyre_base", sx - 20, sy - 26, 32)
+            self.draw_tile("pyre_base", sx + 12, sy - 26, 32)
             if lit or "CAMPFIRE" in label or "ALTAR" in label:
                 self.draw_tile("fire", sx, sy + 6, 36 if "PYRE" in label else 26)
                 self.draw_tile("fire_core", sx, sy + 6, 18 if "PYRE" in label else 9)
@@ -2412,6 +2414,12 @@ class Game(arcade.Window):
         return x - self.cam[0], y - self.cam[1]
 
     def draw_tile(self, texname, sx, sy, size=64):
+        # DEBUG: catch bad calls
+        import sys
+        if not isinstance(texname, str):
+            print(f"DEBUG draw_tile: texname is {type(texname)} = {texname}", file=sys.stderr)
+        if len([a for a in [texname, sx, sy, size] if a is not None]) > 4:
+            print(f"DEBUG draw_tile: too many args: texname={texname}, sx={sx}, sy={sy}, size={size}", file=sys.stderr)
         t = self.tile_tex.get(texname)
         if t is None:
             return False
@@ -2419,7 +2427,8 @@ class Game(arcade.Window):
             from arcade.types.rect import LBWH
             arcade.draw_texture_rect(t, LBWH(sx, sy, size, size), pixelated=True)
             return True
-        except Exception:
+        except Exception as e:
+            print(f"DEBUG draw_tile error: {e}", file=sys.stderr)
             return False
 
     def draw_glyph(self, name, x, y, s=28):

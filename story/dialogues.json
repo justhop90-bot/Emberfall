@@ -1,0 +1,436 @@
+{
+ "wake": {
+  "speaker": "Nym",
+  "text": "Hey \u2014 breathe! The wreck is sinking and you're bleeding sand. Do you remember your name?",
+  "options": [
+   {
+    "text": "\"Alive. That's enough for now.\" (Kind)",
+    "next": "wake2",
+    "approval": {
+     "Nym": 1
+    },
+    "flag": "tone_kind"
+   },
+   {
+    "text": "\"Hands off me.\" (Cold)",
+    "next": "wake2",
+    "approval": {
+     "Kael": 1,
+     "Nym": -1
+    },
+    "flag": "tone_cold"
+   },
+   {
+    "text": "[CUNNING DC9] Read her before answering.",
+    "check": [
+     "CUNNING",
+     9
+    ],
+    "success": "wake_ok",
+    "fail": "wake_fail"
+   }
+  ]
+ },
+ "wake_ok": {
+  "speaker": "Insight",
+  "text": "(SUCCESS) Ink fingers, scholar satchel, shaking hands. Scared FOR you. Trust her \u2014 for now.",
+  "options": [
+   {
+    "text": "\"Thank you for pulling me out.\"",
+    "next": "wake2",
+    "approval": {
+     "Nym": 2
+    }
+   }
+  ]
+ },
+ "wake_fail": {
+  "speaker": "Insight",
+  "text": "(FAIL) Head pounds. Details blur. Just answer.",
+  "options": [
+   {
+    "text": "\"...Awake. I'm awake.\"",
+    "next": "wake2"
+   }
+  ]
+ },
+ "wake2": {
+  "speaker": "Kael",
+  "text": "Enough. Tide takes the wreck by dusk and that Star still hums. Scholar \u2014 we leave the wounded and light the signal, or die curious.",
+  "options": [
+   {
+    "text": "\"Nobody gets left behind.\" (Nym)",
+    "next": "c_nym",
+    "approval": {
+     "Nym": 2,
+     "Kael": -1
+    },
+    "flag": "sided_nym"
+   },
+   {
+    "text": "\"Signal first, grief later.\" (Kael)",
+    "next": "c_kael",
+    "approval": {
+     "Kael": 2,
+     "Nym": -1
+    },
+    "flag": "sided_kael"
+   },
+   {
+    "text": "[WIT DC10] \"Both: splint, oil, fire. Together.\"",
+    "check": [
+     "WIT",
+     10
+    ],
+    "success": "c_peace_ok",
+    "fail": "c_peace_fail"
+   }
+  ]
+ },
+ "c_nym": {
+  "speaker": "Nym",
+  "text": "Decency! Help me: bitter herbs for the sailor (east rocks), oil for the fire. Kael will pout. He'll live.",
+  "options": [
+   {
+    "text": "\"Show me. Act 1 begins.\"",
+    "end": "recruit",
+    "flag": "q1_done"
+   }
+  ]
+ },
+ "c_kael": {
+  "speaker": "Kael",
+  "text": "Soldier's answer. Bring oil from the wreck to the eastern pyre. The scholar's sailor may not last \u2014 war rarely asks.",
+  "options": [
+   {
+    "text": "\"Then we light it together.\"",
+    "end": "recruit",
+    "flag": "q1_done"
+   }
+  ]
+ },
+ "c_peace_ok": {
+  "speaker": "Both",
+  "text": "(SUCCESS) Stare... then nods. Kael: \"A leader's answer.\" Nym: \"Oh, I LIKE you.\"",
+  "options": [
+   {
+    "text": "\"Splint, oil, fire. NOW.\"",
+    "end": "recruit",
+    "approval": {
+     "Nym": 1,
+     "Kael": 1
+    },
+    "flag": "peacemaker"
+   }
+  ]
+ },
+ "c_peace_fail": {
+  "speaker": "Kael",
+  "text": "(FAIL) Pretty words, no plan. Pick a side, stranger.",
+  "options": [
+   {
+    "text": "Back Nym \u2014 save the sailor.",
+    "next": "c_nym",
+    "approval": {
+     "Nym": 1
+    }
+   },
+   {
+    "text": "Back Kael \u2014 signal first.",
+    "next": "c_kael",
+    "approval": {
+     "Kael": 1
+    }
+   }
+  ]
+ },
+ "sailor": {
+  "speaker": "Wounded Sailor",
+  "text": "Cold... the Star sang and the hull answered... Don't let them waste herbs on me \u2014 light the fire...",
+  "options": [
+   {
+    "text": "Give bitter herb (if you carry one).",
+    "need": "herb",
+    "next": "sailor_healed",
+    "flag": "q2_done"
+   },
+   {
+    "text": "\"Hold on. Nym \u2014 splint him.\"",
+    "next": "sailor_stable",
+    "approval": {
+     "Nym": 1
+    },
+    "flag": "q2_done"
+   },
+   {
+    "text": "\"Kael's right. The fire matters more.\" Leave him.",
+    "next": "sailor_left",
+    "approval": {
+     "Kael": 1,
+     "Nym": -2
+    },
+    "flag": "q2_dark"
+   }
+  ]
+ },
+ "sailor_healed": {
+  "speaker": "Nym",
+  "text": "Breathing steadies. You did that. The camp will hear of it \u2014 kindness is a kind of signal too.",
+  "options": [
+   {
+    "text": "\"Rest now. We carry the light.\"",
+    "end": "close",
+    "approval": {
+     "Nym": 2
+    }
+   }
+  ]
+ },
+ "sailor_stable": {
+  "speaker": "Kael",
+  "text": "Splinted. He'll live to the camp if the tide allows. Not every mercy costs the mission. Remember that.",
+  "options": [
+   {
+    "text": "\"Noted. Move to the pyre.\"",
+    "end": "close",
+    "approval": {
+     "Kael": 1,
+     "Nym": 1
+    }
+   }
+  ]
+ },
+ "sailor_left": {
+  "speaker": "Nym",
+  "text": "...I will remember you chose the fire over a man. So will he, if he wakes.",
+  "options": [
+   {
+    "text": "(Say nothing and go.)",
+    "end": "close"
+   }
+  ]
+ },
+ "serren": {
+  "speaker": "Serren (Trader)",
+  "text": "Wreck-rats and wardens, my favorite customers. Gold for salvage, steel for sense. What'll it be?",
+  "options": [
+   {
+    "text": "Trade (open shop).",
+    "shop": true
+   },
+   {
+    "text": "[CUNNING DC10] \"Warden prices for a warden's friend?\"",
+    "check": [
+     "CUNNING",
+     10
+    ],
+    "success": "serren_ok",
+    "fail": "serren_fail"
+   },
+   {
+    "text": "Leave.",
+    "end": "close"
+   }
+  ]
+ },
+ "serren_ok": {
+  "speaker": "Serren",
+  "text": "(SUCCESS) Ha! Fine \u2014 20 gold off your next kindness. Take it.",
+  "options": [
+   {
+    "text": "Trade.",
+    "shop": true,
+    "gold": 20
+   },
+   {
+    "text": "Thanks. Another time.",
+    "end": "close",
+    "gold": 20
+   }
+  ]
+ },
+ "serren_fail": {
+  "speaker": "Serren",
+  "text": "(FAIL) Nice try. Salt prices for salt tongues.",
+  "options": [
+   {
+    "text": "Trade anyway.",
+    "shop": true
+   },
+   {
+    "text": "Leave.",
+    "end": "close"
+   }
+  ]
+ },
+ "altar": {
+  "speaker": "The Pale Star",
+  "text": "*it hums your name* The chapel drowned praying to it. Light the great fire and call the fleet \u2014 or shatter the shard and silence it forever. Both have a price.",
+  "options": [
+   {
+    "text": "LIGHT IT \u2014 call the fleet home. (Kael's way)",
+    "end": "ending_light",
+    "flag": "ending_light"
+   },
+   {
+    "text": "SHATTER IT \u2014 no more songs, no more wrecks. (Nym fears this)",
+    "end": "ending_dark",
+    "flag": "ending_dark"
+   },
+   {
+    "text": "[WIT DC12] BIND IT \u2014 carry the hum, answer later. (Needs Peacemaker OR Nym+3)",
+    "check": [
+     "WIT",
+     12
+    ],
+    "success": "altar_bind",
+    "fail": "altar_bind_fail"
+   }
+  ]
+ },
+ "altar_bind": {
+  "speaker": "The Pale Star",
+  "text": "(SUCCESS) The shard cools into your palm. It chose. The fleet will wait \u2014 and so will the deep.",
+  "options": [
+   {
+    "text": "Take it. End Act 1.",
+    "end": "ending_bind",
+    "flag": "ending_bind"
+   }
+  ]
+ },
+ "altar_bind_fail": {
+  "speaker": "The Pale Star",
+  "text": "(FAIL) It burns. Choose, bearer \u2014 light or shatter, but choose.",
+  "options": [
+   {
+    "text": "Light it.",
+    "end": "ending_light",
+    "flag": "ending_light"
+   },
+   {
+    "text": "Shatter it.",
+    "end": "ending_dark",
+    "flag": "ending_dark"
+   }
+  ]
+ },
+ "banter_nym": {
+  "speaker": "Nym (campfire)",
+  "text": "Do you think the Star sings, or only remembers singing? ...Thank you. For choosing people, back there.",
+  "options": [
+   {
+    "text": "\"Sleep. I'll keep the hum away.\"",
+    "end": "close",
+    "approval": {
+     "Nym": 1
+    }
+   }
+  ]
+ },
+ "banter_kael": {
+  "speaker": "Kael (campfire)",
+  "text": "You held the line today. Exile or not \u2014 you drill like a warden. Tomorrow the chapel. Stay close.",
+  "options": [
+   {
+    "text": "\"Tomorrow we finish it.\"",
+    "end": "close",
+    "approval": {
+     "Kael": 1
+    }
+   }
+  ]
+ },
+ "campfire": {
+  "speaker": "Campfire",
+  "text": "The fire pops. Rest restores all HP/MP (1 ration). Reflecting shapes the Sparks the Star left in you.",
+  "options": [
+   {
+    "text": "Rest until morning.",
+    "end": "rest"
+   },
+   {
+    "text": "Reflect on the Sparks.",
+    "end": "draft"
+   },
+   {
+    "text": "Retread your path (respec, 1 ration).",
+    "end": "respec"
+   },
+   {
+    "text": "Leave it.",
+    "end": "close"
+   }
+  ]
+ },
+ "draft_tut": {
+  "speaker": "Nym",
+  "text": "Your eyes - they glimmered, just now. The Star left Sparks in you. When you choose one, it shapes you: ember, iron or tide. Pick what feels true.",
+  "options": [
+   {
+    "text": "Show me. (Reflect on a Spark)",
+    "end": "draft"
+   }
+  ]
+ },
+ "nym_bond2": {
+  "speaker": "Nym (campfire)",
+  "text": "Friend. If we stand together, I can call the Star down WITH you - look for Duo in battle. It costs us little, and them everything.",
+  "options": [
+   {
+    "text": "Together, then.",
+    "end": "draft"
+   }
+  ]
+ },
+ "nym_bond4": {
+  "speaker": "Nym (campfire)",
+  "text": "Confidant. The duet burns hotter now - our Starfall sets the world alight. I trust you with the sky.",
+  "options": [
+   {
+    "text": "The sky is ours.",
+    "end": "draft"
+   }
+  ]
+ },
+ "nym_bond5": {
+  "speaker": "Nym (campfire)",
+  "text": "Sworn. Whatever the Star wants of you, it goes through me first. Our duet is cheaper now - spend it freely.",
+  "options": [
+   {
+    "text": "Always.",
+    "end": "draft"
+   }
+  ]
+ },
+ "kael_bond2": {
+  "speaker": "Kael (campfire)",
+  "text": "Friend. Shield to shield - call Phalanx Oath (Duo) and no line breaks us. I will hold; you strike.",
+  "options": [
+   {
+    "text": "Shield to shield.",
+    "end": "draft"
+   }
+  ]
+ },
+ "kael_bond4": {
+  "speaker": "Kael (campfire)",
+  "text": "Confidant. The Oath hardens - we mend as we hold, and strike back harder. You fight like a warden born.",
+  "options": [
+   {
+    "text": "Like a warden.",
+    "end": "draft"
+   }
+  ]
+ },
+ "kael_bond5": {
+  "speaker": "Kael (campfire)",
+  "text": "Sworn. My shield is yours, my debt paid in advance. The Oath is cheaper now - use it every battle.",
+  "options": [
+   {
+    "text": "Every battle.",
+    "end": "draft"
+   }
+  ]
+ }
+}

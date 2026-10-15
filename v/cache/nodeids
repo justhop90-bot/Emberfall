@@ -1,0 +1,20 @@
+[
+  "tests/test_combat.py::test_auto_battle_winnable",
+  "tests/test_combat.py::test_boss_flee_fails_and_fights",
+  "tests/test_combat.py::test_menu_input_two_rounds_deal_damage",
+  "tests/test_combat.py::test_menu_lists_match_kits",
+  "tests/test_combat.py::test_spell_mp_deducted_and_heals",
+  "tests/test_combat.py::test_tables_sane",
+  "tests/test_dialogues.py::test_checks_sane",
+  "tests/test_dialogues.py::test_graph_links",
+  "tests/test_dialogues.py::test_needs_valid",
+  "tests/test_progression.py::test_draft_pools",
+  "tests/test_progression.py::test_duo_gating",
+  "tests/test_progression.py::test_duo_locked_until_scene_sealed",
+  "tests/test_progression.py::test_flawless_victory_earns_bonds",
+  "tests/test_progression.py::test_level_queues_draft_not_instant_power",
+  "tests/test_progression.py::test_tables_sane",
+  "tests/test_progression.py::test_tag_sets_and_bonds",
+  "tests/test_progression.py::test_talent_apply_and_sets",
+  "tests/test_progression.py::test_tutorial_plays_before_bond_scene"
+]
